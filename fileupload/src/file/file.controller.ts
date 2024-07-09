@@ -1,10 +1,15 @@
 
-import { Controller, Post, UseInterceptors, UploadedFiles, Get,HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFiles, Get,HttpStatus, HttpException, Res, Param } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
 import { MulterFile } from './multer-file.interface';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Response } from 'express';
+import { File } from './file.entity';
+import * as archiver from 'archiver';
+import * as fs from 'fs';
+import * as FormData from 'form-data';
 
 @Controller('files')
 export class FileController {
@@ -20,7 +25,18 @@ export class FileController {
         callback(null, `${uniqueSuffix}${ext}`); // Combine unique suffix with file extension for the filename
       },
     }),
+
+
+    fileFilter: (req, file, callback) => {
+      // Accept images only
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+        return callback(new HttpException('Only image files are allowed!', HttpStatus.BAD_REQUEST), false);
+      }
+      callback(null, true);
+    },
   }))
+
+
   async uploadFiles(@UploadedFiles() files: MulterFile[]) {
     try {
         if (!files || files.length === 0) { // Check if files are provided
@@ -44,4 +60,32 @@ export class FileController {
   async getAllFiles() {
     return this.fileService.findAll();// Return all files stored in the database
   }
+
+  
+  // @Get('all')
+  // async getAllFiles(@Res() res: Response) {
+  //   const files = await this.fileService.findAll();
+
+  //   const imagePromises = files.map(async (file) => {
+  //     return new Promise<void>((resolve, reject) => {
+  //       res.write('<img src="data:image/jpeg;base64,' + fs.readFileSync(file.path, { encoding: 'base64' }) + '" />');
+  //       resolve();
+  //     });
+  //   });
+
+  //   await Promise.all(imagePromises);
+  //   res.end();
+  // }
+
+
+  @Get('view/:filename')
+  async viewImage(@Param('filename') filename: string, @Res() res: Response) {
+    const file: File = await this.fileService.findByFilename(filename);
+    if (!file) {
+      throw new HttpException('File not found', HttpStatus.NOT_FOUND);
+    }
+    return res.sendFile(file.path, { root: './' });
+  } 
+
+
 }

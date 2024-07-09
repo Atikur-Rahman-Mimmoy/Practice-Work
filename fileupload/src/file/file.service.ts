@@ -1,5 +1,5 @@
 
-import { Injectable } from '@nestjs/common';
+import { Injectable,HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { File } from './file.entity';
@@ -31,4 +31,9 @@ export class FileService {
   async findAll(): Promise<File[]> { // Retrieve all files from the database
     return this.fileRepository.find();
   }
+
+  async findByFilename(filename: string): Promise<File> {
+    return this.fileRepository.findOne({ where: { filename } });
+  }
+  
 }
